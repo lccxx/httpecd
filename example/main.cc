@@ -6,37 +6,7 @@
 #include <arpa/inet.h>
 #include <strings.h>
 
-#include <deque>
 #include <thread>
-
-class Coroutine {
- public:
-  static constexpr int MAX_QUE_SIZE = 99;
-
-  int64_t sum = 0;
-
-  Coroutine() { this->max_sum_ = 1e+8; }
-  explicit Coroutine(uint64_t max_sum) { this->max_sum_ = max_sum; }
-
-  void producer() {
-    while (sum < max_sum_) {
-      while (que.size() < MAX_QUE_SIZE) {
-        que.push_back('a');
-        sum++;
-      }
-      consumer();
-    }
-  }
-
-  void consumer() {
-    while (!que.empty())
-      que.pop_front();
-  }
-
- private:
-  std::deque<char> que;
-  uint64_t max_sum_;
-};
 
 int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in *dest) {
   bzero(dest, sizeof(*dest));
@@ -86,32 +56,16 @@ int main(int argc, char **args) {
     }
   }
 
-  printf("to wait epollfd: %d\n", epollfd);
   num_ready = epoll_wait(epollfd, events.data(), events.size(), TIMEOUT_MS);
-  printf("num_ready: %d\n", num_ready);
   if (num_ready == -1) {
     perror("epoll_wait");
     exit(EXIT_FAILURE);
   }
   for (int i = 0; i < num_ready; ++i) {
-    printf("Socket %d event, connect\n", events[i].data.fd);
+
   }
 
-  std::array<Coroutine, 1> coroutines = {};
-
-  for (auto &coroutine : coroutines)
-    std::thread([&coroutine] {
-      coroutine.producer();
-    }).detach();
-
-  for (int64_t old_sum = 0;;) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    uint64_t total = 0;
-    for (const auto &coroutine : coroutines) total += coroutine.sum;
-    if (total - old_sum == 0) break;
-    printf("per_second: %ld, total: %ld\n", (total - old_sum), total);
-    old_sum = total;
-  }
+  num_ready = epoll_wait(epollfd, events.data(), events.size(), TIMEOUT_MS);
 
   return 0;
 }
