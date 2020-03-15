@@ -20,6 +20,15 @@ int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in 
 }
 
 int main(int argc, char **args) {
+  constexpr int TIMEOUT_MS = 5000;
+  constexpr int MAX_EVENTS = 1024;
+
+  struct epoll_event events[MAX_EVENTS] = {};
+  int num_ready = 0;
+
+  const char host[] = "127.0.0.1";
+  const int port = 80;
+
   int epollfd;
   if ((epollfd = epoll_create1(0)) == -1) {
     perror("epoll_create1");
@@ -32,7 +41,7 @@ int main(int argc, char **args) {
     exit(errno);
   }
 
-  struct epoll_event event{};
+  struct epoll_event event = {};
   event.events = EPOLLIN;
   event.data.fd = sockfd;
   if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
@@ -40,32 +49,30 @@ int main(int argc, char **args) {
     exit(EXIT_FAILURE);
   }
 
-  constexpr int TIMEOUT_MS = 5000;
-  std::array<struct epoll_event, 1024> events{};
-  int num_ready = 0;
-
   struct sockaddr_in dest{};
-  if (init_sockaddr_in_ipv4("127.0.0.1", 80, &dest) != 200) {
+  if (init_sockaddr_in_ipv4(host, port, &dest) != 200) {
     exit(errno);
   }
 
   if (connect(sockfd, (struct sockaddr *) &dest, sizeof(dest)) != 0) {
     if (errno != EINPROGRESS) {
-      perror("Connect ");
+      perror(std::string("Connect ").append(host).append(":").append(std::to_string(port)).c_str());
       exit(errno);
     }
   }
 
-  num_ready = epoll_wait(epollfd, events.data(), events.size(), TIMEOUT_MS);
+  num_ready = epoll_wait(epollfd, events, MAX_EVENTS, TIMEOUT_MS);
   if (num_ready == -1) {
     perror("epoll_wait");
     exit(EXIT_FAILURE);
   }
   for (int i = 0; i < num_ready; ++i) {
-
+    if (events[i].events && events[i].data.fd == sockfd) {
+      printf("%s:%d connected\n", host, port);
+    }
   }
 
-  num_ready = epoll_wait(epollfd, events.data(), events.size(), TIMEOUT_MS);
+  // num_ready = epoll_wait(epollfd, events, MAX_EVENTS, TIMEOUT_MS);
 
   return 0;
 }
