@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 
 #include <strings.h>
+#include <zconf.h>
 
 namespace httpecd::client {
 
@@ -38,7 +39,7 @@ void batch_request(const char *host, int port, const std::string &request,
     event.events = EPOLLIN;
     event.data.fd = sockfd;
     if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
-      perror("epoll_ctl: sockfd");
+      perror("epoll_ctl: ");
       exit(EXIT_FAILURE);
     }
 
@@ -63,7 +64,7 @@ void batch_request(const char *host, int port, const std::string &request,
   constexpr int MAX_BUFF = 16 * 1024;
   for (int epollfd : epolls) {
     int num_ready = epoll_wait(epollfd, events.data(), events.size(), 5000 /* TIMEOUT_MS */);
-    if (num_ready == -1) {
+    if (num_ready < 1) {
       perror("epoll_wait");
       exit(EXIT_FAILURE);
     }
@@ -74,6 +75,11 @@ void batch_request(const char *host, int port, const std::string &request,
           perror("recv");
           exit(EXIT_FAILURE);
         }
+        if (epoll_ctl(epollfd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]) == -1) {
+          perror("epoll_ctl del: ");
+          exit(EXIT_FAILURE);
+        }
+        close(events[i].data.fd);
       }
     }
   }
