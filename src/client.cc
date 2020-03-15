@@ -10,12 +10,12 @@
 
 namespace httpecd::client {
 
-int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in *dest) {
+int init_sockaddr_in_ipv4(const char *host, int port, struct sockaddr_in *dest) {
   bzero(dest, sizeof(*dest));
   dest->sin_family = AF_INET;
   dest->sin_port = htons(port);
-  if (inet_pton(AF_INET, host.c_str(), &((*dest).sin_addr.s_addr)) == 0) {
-    perror(host.c_str());
+  if (inet_pton(AF_INET, host, &((*dest).sin_addr.s_addr)) == 0) {
+    perror(host);
     return -1;
   }
   return 200;

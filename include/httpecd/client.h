@@ -11,7 +11,7 @@
 
 namespace httpecd::client {
 
-int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in *dest);
+int init_sockaddr_in_ipv4(const char *host, int port, struct sockaddr_in *dest);
 
 void batch_request(const char *host, int port, const std::string &request,
                    std::vector<int> &epolls, std::vector<struct epoll_event> &events);
