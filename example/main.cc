@@ -19,6 +19,13 @@ int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in 
   return 200;
 }
 
+/**
+ ruby -e 'require "socket"; server = TCPServer.new 2000; \
+    loop { client = server.accept; p "a new connect accepted"; \
+      loop { line = client.gets; p ">> #{line}"; break if line === "\r\n" }; \
+      client.write "HTTP/1.1 204 No Content\r\n\r\n"; client.close }'
+ */
+
 int main(int argc, char **args) {
   constexpr int TIMEOUT_MS = 5000;
   constexpr int MAX_EVENTS = 1024;
@@ -27,7 +34,7 @@ int main(int argc, char **args) {
   int num_ready = 0;
 
   const char host[] = "127.0.0.1";
-  const int port = 80;
+  const int port = 2000;
 
   int epollfd;
   if ((epollfd = epoll_create1(0)) == -1) {
