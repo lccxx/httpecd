@@ -20,10 +20,10 @@ int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in 
 }
 
 /**
- ruby -e 'require "socket"; server = TCPServer.new 2000; \
-    loop { client = server.accept; p "a new connect accepted"; \
-      loop { line = client.gets; p ">> #{line}"; break if line === "\r\n" }; \
-      client.write "HTTP/1.1 204 No Content\r\n\r\n"; client.close }'
+ruby -e 'require "socket"; server = TCPServer.new 2000; \
+  loop { client = server.accept; p "a new connect accepted"; \
+    loop { line = client.gets; p ">> #{line}"; break if !line || line === "\r\n" }; \
+    client.write "HTTP/1.1 204 No Content\r\n\r\n"; client.close }'
  */
 
 int main(int argc, char **args) {
@@ -76,6 +76,8 @@ int main(int argc, char **args) {
   for (int i = 0; i < num_ready; ++i) {
     if (events[i].events && events[i].data.fd == sockfd) {
       printf("%s:%d connected\n", host, port);
+      std::string req = "GET / HTTP/1.1\r\n\r\n";
+      send(sockfd, req.c_str(), req.size(), 0);
     }
   }
 
