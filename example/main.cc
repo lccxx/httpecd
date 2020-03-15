@@ -7,6 +7,7 @@
 #include <strings.h>
 
 #include <thread>
+#include <cerrno>
 
 int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in *dest) {
   bzero(dest, sizeof(*dest));
@@ -19,22 +20,17 @@ int init_sockaddr_in_ipv4(const std::string &host, int port, struct sockaddr_in 
   return 200;
 }
 
-/**
-ruby -e 'require "socket"; server = TCPServer.new 2000; \
-  loop { client = server.accept; p "a new connect accepted"; \
-    loop { line = client.gets; p ">> #{line}"; break if !line || line === "\r\n" }; \
-    client.write "HTTP/1.1 204 No Content\r\n\r\n"; client.close }'
- */
-
 int main(int argc, char **args) {
   constexpr int TIMEOUT_MS = 5000;
   constexpr int MAX_EVENTS = 1024;
+  constexpr int MAX_BUFF = 1 * 1024 * 1024;
 
   struct epoll_event events[MAX_EVENTS] = {};
   int num_ready = 0;
 
   const char host[] = "127.0.0.1";
-  const int port = 2000;
+  const int port = 80;
+  const std::string req = "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
 
   int epollfd;
   if ((epollfd = epoll_create1(0)) == -1) {
@@ -68,6 +64,8 @@ int main(int argc, char **args) {
     }
   }
 
+  send(sockfd, req.c_str(), req.size(), MSG_DONTWAIT);
+
   num_ready = epoll_wait(epollfd, events, MAX_EVENTS, TIMEOUT_MS);
   if (num_ready == -1) {
     perror("epoll_wait");
@@ -75,13 +73,11 @@ int main(int argc, char **args) {
   }
   for (int i = 0; i < num_ready; ++i) {
     if (events[i].events && events[i].data.fd == sockfd) {
-      printf("%s:%d connected\n", host, port);
-      std::string req = "GET / HTTP/1.1\r\n\r\n";
-      send(sockfd, req.c_str(), req.size(), 0);
+      char buffer[MAX_BUFF] = {0};
+      recv(sockfd, buffer, sizeof(buffer), MSG_DONTWAIT);
+      printf("Received: %s", buffer);
     }
   }
-
-  // num_ready = epoll_wait(epollfd, events, MAX_EVENTS, TIMEOUT_MS);
 
   return 0;
 }
