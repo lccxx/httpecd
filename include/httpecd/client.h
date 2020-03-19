@@ -8,13 +8,29 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 namespace httpecd::client {
 
 int init_sockaddr_in_ipv4(const char *host, int port, struct sockaddr_in *dest);
 
-void batch_request(const char *host, int port, const std::string &request,
-                   std::vector<int> &epolls, std::vector<struct epoll_event> &events);
+struct Request {
+  const char *host;
+  int port;
+  const char *data;
+};
+
+class Batch {
+ public:
+  static constexpr int MAX_POLL = 1000;
+
+  void add(const Request &request);
+
+  void run();
+
+ private:
+  std::map<int, int> epoll_sockets;
+};
 
 }  // httpecd::client
 

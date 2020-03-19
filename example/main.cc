@@ -7,21 +7,25 @@
 
 int main(int argc, char **args) {
   std::array<uint64_t, 1> sums = {0};      // thread number
-  constexpr uint64_t MAX_REQUEST = 10000;  // per thread request number
+  constexpr uint64_t MAX_REQUEST = 3000;  // per thread request number
 
   for (auto &sum : sums) {
     std::thread([&sum, &MAX_REQUEST] {
-      constexpr int EPOLL_SIZE = 1024;
-
       const char host[] = "127.0.0.1";
       const int port = 80;
-      const std::string req = "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
 
-      std::vector<int> epolls(EPOLL_SIZE);
-      std::vector<struct epoll_event> events(EPOLL_SIZE);
+      httpecd::client::Batch batch = {};
 
-      for (sum = 0; sum < MAX_REQUEST; sum += EPOLL_SIZE) {
-        httpecd::client::batch_request(host, port, req, epolls, events);
+      for (sum = 0; sum < MAX_REQUEST; sum += httpecd::client::Batch::MAX_POLL) {
+        for (int i = 0; i < httpecd::client::Batch::MAX_POLL; ++i) {
+          std::string data = "GET /?";
+          data.append(std::to_string(sum + i))
+              .append(" HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+          batch.add({host, port, data.c_str()});
+        }
+
+        batch.run();
       }
     }).detach();
   }
