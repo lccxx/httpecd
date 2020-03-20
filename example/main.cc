@@ -1,12 +1,11 @@
 // created by lich 2/24/2020, no copyright no copyleft
 
 #include <thread>
-#include <vector>
 
 #include "httpecd/client.h"
 
 int main(int argc, char **args) {
-  std::array<uint64_t, 6> sums = {0};      // thread number
+  std::array<uint64_t, 9> sums = {0};      // thread number
   constexpr uint64_t MAX_REQUESTS = 1000000;  // per thread request number
 
   for (auto &sum : sums) {

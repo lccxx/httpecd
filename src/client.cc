@@ -69,8 +69,7 @@ int Client::send_request(const char *data, size_t size) {
 }
 
 int Client::wait_response(char *buffer, size_t buffer_size) {
-  int num_ready = epoll_wait(curr_epollfd, events.data(), events.size(), TIME_OUT_MS);
-  if (num_ready < 1) {
+  if (epoll_wait(curr_epollfd, events, MAX_EVENTS, TIME_OUT_MS) < 1) {
     perror("epoll_wait");
     return -1;
   }

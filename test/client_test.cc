@@ -6,7 +6,6 @@
 #include "httpecd/client.h"
 
 TEST(RandomTest, Create) {  // NOLINT
-
   EXPECT_EQ(1, 1);
   EXPECT_EQ(HTTPECD_VERSION_MAJOR, 0);
   EXPECT_EQ(HTTPECD_VERSION_MINOR, 1);
