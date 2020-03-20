@@ -6,12 +6,10 @@
 #include <sys/socket.h>
 
 #include <strings.h>
-#include <zconf.h>
 
-#include <cstring>
-#include <map>
+#include <string>
 
-namespace httpecd::client {
+namespace httpecd {
 
 int init_sockaddr_in_ipv4(const char *host, int port, struct sockaddr_in *dest) {
   bzero(dest, sizeof(*dest));
@@ -24,69 +22,65 @@ int init_sockaddr_in_ipv4(const char *host, int port, struct sockaddr_in *dest) 
   return 200;
 }
 
-void Batch::add(const Request &request) {
+int Client::connect_host(const char *host, int port) {
   int epollfd;
   if ((epollfd = epoll_create1(0)) == -1) {
     perror("epoll_create1");
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   int sockfd;
   if ((sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
     perror("socket");
-    exit(errno);
+    return errno;
   }
-  epoll_sockets[epollfd] = sockfd;
 
   struct epoll_event event = {};
   event.events = EPOLLIN;
   if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &event) == -1) {
     perror("epoll_ctl: ");
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   struct sockaddr_in dest{};
-  if (init_sockaddr_in_ipv4(request.host, request.port, &dest) != 200) {
-    exit(errno);
+  if (init_sockaddr_in_ipv4(host, port, &dest) != 200) {
+    return errno;
   }
 
   if (connect(sockfd, (struct sockaddr *) &dest, sizeof(dest)) != 0) {
     if (errno != EINPROGRESS) {
-      perror(std::string("Connect ").append(request.host).append(":").append(std::to_string(request.port)).c_str());
-      exit(errno);
+      perror(std::string("Connect ").append(host).append(":").append(std::to_string(port)).c_str());
+      return errno;
     }
   }
 
-  if (send(sockfd, request.data, strlen(request.data), MSG_DONTWAIT) == -1) {
+  curr_epollfd = epollfd;
+  curr_sockfd = sockfd;
+  return 0;
+}
+
+int Client::send_request(const char *data, size_t size) {
+  if (send(curr_sockfd, data, size, MSG_DONTWAIT) == -1) {
     perror("send");
-    // exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
+
+  return 0;
 }
 
-void Batch::run() {
-  std::vector<struct epoll_event> events(epoll_sockets.size());
-  constexpr int MAX_BUFF = 16 * 1024;
-  for (auto epoll_socket = epoll_sockets.begin(); epoll_socket != epoll_sockets.end(); epoll_socket = epoll_sockets.erase(epoll_socket)) {
-    int num_ready = epoll_wait(epoll_socket->first, events.data(), events.size(), 5000 /* TIMEOUT_MS */);
-    if (num_ready < 1) {
-      perror("epoll_wait");
-      exit(EXIT_FAILURE);
-    }
-    for (int i = 0; i < num_ready; ++i) {
-      if (events[i].events) {
-        char buffer[MAX_BUFF] = {0};
-        if (recv(epoll_socket->second, buffer, 16 * 1024, MSG_DONTWAIT) == -1) {
-          perror("recv");
-          exit(EXIT_FAILURE);
-        }
-        if (epoll_ctl(epoll_socket->first, EPOLL_CTL_DEL, epoll_socket->second, &events[i]) == -1) {
-          perror("epoll_ctl del: ");
-          exit(EXIT_FAILURE);
-        }
-        close(events[i].data.fd);
-      }
-    }
+int Client::wait_response(char *buffer, size_t buffer_size) {
+  int num_ready = epoll_wait(curr_epollfd, events.data(), events.size(), TIME_OUT_MS);
+  if (num_ready < 1) {
+    perror("epoll_wait");
+    return -1;
   }
+
+  size_t response_size;
+  if ((response_size = recv(curr_sockfd, buffer, buffer_size, MSG_DONTWAIT)) == -1) {
+    perror("recv");
+    return -1;
+  }
+  return response_size;
 }
 
-}  // namespace httpecd::client
+}  // namespace httpecd

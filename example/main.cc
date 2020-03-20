@@ -6,26 +6,24 @@
 #include "httpecd/client.h"
 
 int main(int argc, char **args) {
-  std::array<uint64_t, 1> sums = {0};      // thread number
-  constexpr uint64_t MAX_REQUEST = 3000;  // per thread request number
+  std::array<uint64_t, 6> sums = {0};      // thread number
+  constexpr uint64_t MAX_REQUESTS = 1000000;  // per thread request number
 
   for (auto &sum : sums) {
-    std::thread([&sum, &MAX_REQUEST] {
-      const char host[] = "127.0.0.1";
-      const int port = 80;
+    std::thread([&sum, &MAX_REQUESTS] {
+      httpecd::Client batch = {};
+      batch.connect_host("127.0.0.1", 80);
 
-      httpecd::client::Batch batch = {};
+      constexpr size_t BUFFER_SIZE = 8192;
+      char buffer[BUFFER_SIZE];
 
-      for (sum = 0; sum < MAX_REQUEST; sum += httpecd::client::Batch::MAX_POLL) {
-        for (int i = 0; i < httpecd::client::Batch::MAX_POLL; ++i) {
-          std::string data = "GET /?";
-          data.append(std::to_string(sum + i))
-              .append(" HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+      for (sum = 0; sum < MAX_REQUESTS; ++sum) {
+        std::string data = "GET /?";
+        data.append(std::to_string(sum))
+            .append(" HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
 
-          batch.add({host, port, data.c_str()});
-        }
-
-        batch.run();
+        batch.send_request(data.c_str(), data.size());
+        batch.wait_response(buffer, BUFFER_SIZE);
       }
     }).detach();
   }
